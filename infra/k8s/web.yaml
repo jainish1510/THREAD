@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thread-web
+  namespace: thread
+  labels: { app: thread-web }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: thread-web } }
+  template:
+    metadata:
+      labels: { app: thread-web }
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: web
+          image: ghcr.io/jainish1510/thread-web:latest
+          ports: [{ containerPort: 3000 }]
+          env:
+            - name: API_INTERNAL_URL
+              valueFrom: { configMapKeyRef: { name: thread-config, key: API_INTERNAL_URL } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /, port: 3000 }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: thread-web
+  namespace: thread
+spec:
+  selector: { app: thread-web }
+  ports: [{ port: 3000, targetPort: 3000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: thread
+  namespace: thread
+  annotations:
+    # Server-sent events need unbuffered, long-lived responses.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  tls: [{ hosts: [thread.example.com], secretName: thread-tls }]
+  rules:
+    - host: thread.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: thread-web, port: { number: 3000 } } }
