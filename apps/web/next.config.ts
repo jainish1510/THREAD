@@ -2,17 +2,13 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Self-contained server bundle for the Docker image only; `npm start` locally uses the normal build.
+  output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
   reactStrictMode: true,
   // The shared catalog lives in /packages, outside this app.
   turbopack: { root: path.join(__dirname, "..", "..") },
   outputFileTracingRoot: path.join(__dirname, "..", ".."),
-  // The API is served same-origin under /api, so session cookies stay first-party.
-  async rewrites() {
-    const api = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
-    return [{ source: "/api/:path*", destination: `${api}/:path*` }];
-  },
   async headers() {
     return [
       {

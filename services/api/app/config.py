@@ -3,7 +3,15 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parents[3]
+
+def _default_catalog_path() -> str:
+    """The shared catalog in a repo checkout; containers set CATALOG_PATH explicitly."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "packages" / "catalog" / "catalog.json"
+        if candidate.exists():
+            return str(candidate)
+    return "catalog.json"
 
 
 class Settings(BaseSettings):
@@ -17,7 +25,7 @@ class Settings(BaseSettings):
     cookie_domain: str | None = None
     cookie_secure: bool = False
     session_days: int = 30
-    catalog_path: str = str(ROOT / "packages" / "catalog" / "catalog.json")
+    catalog_path: str = _default_catalog_path()
     public_web_url: str = "http://localhost:3000"
 
     # Payments. Without a secret key the API runs checkout in clearly-labelled test mode.

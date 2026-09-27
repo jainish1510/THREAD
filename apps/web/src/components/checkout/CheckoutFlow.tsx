@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -23,7 +24,13 @@ import {
 import { TextField } from "../ui/TextField";
 import { EmptyState } from "../ui/States";
 import { OrderSummary, type Totals } from "./OrderSummary";
-import { StripePayment, type StripeHandle } from "./StripePayment";
+import type { StripeHandle } from "./StripePayment";
+
+// Only fetched when Stripe is actually configured and the payment step is reached.
+const StripePayment = dynamic(() => import("./StripePayment").then((m) => m.StripePayment), {
+  ssr: false,
+  loading: () => <div className="skeleton h-40 w-full" aria-label="Loading payment form" />,
+});
 import { rememberOrder } from "./recentOrders";
 
 type Step = "information" | "shipping" | "payment" | "review" | "confirmation";
@@ -331,7 +338,7 @@ export function CheckoutFlow() {
                 />
                 {result.payment_mode === "stripe" && stripeKey && result.client_secret ? (
                   <div className="mt-10">
-                    <StripePayment ref={stripeRef} publishableKey={stripeKey} clientSecret={result.client_secret} email={email} />
+                    <StripePayment handleRef={stripeRef} publishableKey={stripeKey} clientSecret={result.client_secret} email={email} />
                     <p className="mt-4 text-[12px] text-muted">Cards, Apple Pay and Google Pay are offered where your device supports them. Payments are processed by Stripe.</p>
                   </div>
                 ) : (

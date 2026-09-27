@@ -4,6 +4,8 @@
  */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
+const UNREACHABLE = "We couldn't reach THREAD. Check your connection and try again.";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -40,11 +42,13 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     });
   } catch {
-    throw new ApiError(0, "We couldn't reach THREAD. Check your connection and try again.");
+    throw new ApiError(0, UNREACHABLE);
   }
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => null);
   if (!res.ok) {
+    // A 5xx with no API body means the proxy couldn't reach the API at all.
+    if (res.status >= 500 && body === null) throw new ApiError(res.status, UNREACHABLE);
     const detail = body?.detail;
     const message =
       typeof detail === "string"

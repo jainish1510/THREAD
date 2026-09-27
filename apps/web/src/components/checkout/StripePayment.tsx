@@ -1,8 +1,10 @@
 "use client";
 
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
-import { forwardRef, useImperativeHandle, useMemo } from "react";
+// The "pure" entry defers loading js.stripe.com until loadStripe() is called.
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe } from "@stripe/stripe-js";
+import { useImperativeHandle, useMemo, type RefObject } from "react";
 
 export interface StripeHandle {
   /** Confirms the PaymentIntent. Returns an error message, or null on success. */
@@ -34,22 +36,30 @@ const appearance = {
 };
 
 /** Stripe Payment Element: cards plus Apple Pay / Google Pay where available. */
-export const StripePayment = forwardRef<StripeHandle, { publishableKey: string; clientSecret: string; email: string }>(function StripePayment(
-  { publishableKey, clientSecret, email },
-  ref,
-) {
+export function StripePayment({
+  publishableKey,
+  clientSecret,
+  email,
+  handleRef,
+}: {
+  publishableKey: string;
+  clientSecret: string;
+  email: string;
+  /** Passed as a plain prop (not `ref`) so it survives next/dynamic code-splitting. */
+  handleRef: RefObject<StripeHandle | null>;
+}) {
   const stripe = useMemo(() => stripeFor(publishableKey), [publishableKey]);
   return (
     <Elements stripe={stripe} options={{ clientSecret, appearance }}>
-      <Inner ref={ref} email={email} />
+      <Inner handleRef={handleRef} email={email} />
     </Elements>
   );
-});
+}
 
-const Inner = forwardRef<StripeHandle, { email: string }>(function Inner({ email }, ref) {
+function Inner({ email, handleRef }: { email: string; handleRef: RefObject<StripeHandle | null> }) {
   const stripe = useStripe();
   const elements = useElements();
-  useImperativeHandle(ref, () => ({
+  useImperativeHandle(handleRef, () => ({
     confirm: async (returnUrl) => {
       if (!stripe || !elements) return "Payment is still loading. Please try again.";
       const { error } = await stripe.confirmPayment({
@@ -61,4 +71,4 @@ const Inner = forwardRef<StripeHandle, { email: string }>(function Inner({ email
     },
   }));
   return <PaymentElement options={{ layout: "tabs", wallets: { applePay: "auto", googlePay: "auto" } }} />;
-});
+}
